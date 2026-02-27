@@ -130,9 +130,6 @@ dist
 ehthumbs.db
 Thumbs.db
 
-# Docker
-.dockerignore
-
 # Build directories
 dist/
 build/
