@@ -1,72 +1,61 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-  UseGuards,
-  ParseUUIDPipe,
-} from '@nestjs/common';
-import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Controller, ParseUUIDPipe, UseGuards } from "@nestjs/common";
+import { UserService } from "./user.service";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
+import { MessagePattern, Payload } from "@nestjs/microservices";
+import { RolesGuard } from "../../common/guards/roles.guard";
+import { Roles } from "../../common/decorators/roles.decorator";
 
-@Controller('users')
+@Controller()
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
+  @MessagePattern({ cmd: "users.create.one" })
+  create(@Payload() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
 
-  @Get()
-  findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-    @Query('search') search?: string,
-  ) {
+  @MessagePattern({ cmd: "users.get.all" })
+  findAll(@Payload() data: { page?: number; limit?: number; search?: string }) {
+    const { page = 1, limit = 10, search } = data;
     return this.userService.findAll(page, limit, search);
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
+  @MessagePattern({ cmd: "users.find.one" })
+  findOne(@Payload("id", ParseUUIDPipe) id: string) {
     return this.userService.findOne(id);
   }
 
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
-    return this.userService.update(id, updateUserDto);
+  @MessagePattern({ cmd: "users.update.one" })
+  @UseGuards(RolesGuard)
+  @Roles("admin", "user")
+  update(@Payload() data: { id: string; updateUserDto: UpdateUserDto }) {
+    return this.userService.update(data.id, data.updateUserDto);
   }
 
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  remove(@Param('id', ParseUUIDPipe) id: string) {
+  @MessagePattern({ cmd: "users.remove.one" })
+  @UseGuards(RolesGuard)
+  @Roles("admin")
+  remove(@Payload("id", ParseUUIDPipe) id: string) {
     return this.userService.remove(id);
   }
 
-  @Get('email/:email')
-  findByEmail(@Param('email') email: string) {
+  @MessagePattern({ cmd: "users.find.email" })
+  findByEmail(@Payload("email") email: string) {
     return this.userService.findByEmail(email);
   }
 
-  @Patch(':id/activate')
-  @UseGuards(JwtAuthGuard)
-  activate(@Param('id', ParseUUIDPipe) id: string) {
+  @MessagePattern({ cmd: "users.activate.one" })
+  @UseGuards(RolesGuard)
+  @Roles("admin")
+  activate(@Payload("id", ParseUUIDPipe) id: string) {
     return this.userService.activate(id);
   }
 
-  @Patch(':id/deactivate')
-  @UseGuards(JwtAuthGuard)
-  deactivate(@Param('id', ParseUUIDPipe) id: string) {
+  @MessagePattern({ cmd: "users.deactivate.one" })
+  @UseGuards(RolesGuard)
+  @Roles("admin")
+  deactivate(@Payload("id", ParseUUIDPipe) id: string) {
     return this.userService.deactivate(id);
   }
 }
