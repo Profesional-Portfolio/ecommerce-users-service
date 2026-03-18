@@ -1,6 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ROLES_KEY } from "../decorators/roles.decorator";
+import { UserPayload } from "../../modules/auth/interfaces/user-payload.interface";
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -15,7 +16,7 @@ export class RolesGuard implements CanActivate {
       return true;
     }
     const data = context.switchToRpc().getData();
-    const user = data?.user;
+    const user: UserPayload = data?.user;
 
     if (!user || !user.roles) {
       return false;

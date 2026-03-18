@@ -5,6 +5,8 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 import { MessagePattern, Payload } from "@nestjs/microservices";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
+import { User } from "../../common/decorators/user.decorator";
+import { UserPayload } from "../auth/interfaces/user-payload.interface";
 
 @Controller()
 export class UserController {
@@ -29,14 +31,23 @@ export class UserController {
   @MessagePattern({ cmd: "users.update.one" })
   @UseGuards(RolesGuard)
   @Roles("admin", "user")
-  update(@Payload() data: { id: string; updateUserDto: UpdateUserDto }) {
+  update(
+    @Payload() data: { id: string; updateUserDto: UpdateUserDto },
+    @User() user: UserPayload,
+  ) {
+    // Ejemplo de lógica de propiedad:
+    // Si no es admin, solo puede actualizarse a sí mismo
+    if (!user.roles.includes("admin") && user.id !== data.id) {
+      throw new Error("No tienes permiso para actualizar este perfil");
+    }
     return this.userService.update(data.id, data.updateUserDto);
   }
 
   @MessagePattern({ cmd: "users.remove.one" })
   @UseGuards(RolesGuard)
   @Roles("admin")
-  remove(@Payload("id", ParseUUIDPipe) id: string) {
+  remove(@Payload("id", ParseUUIDPipe) id: string, @User("id") adminId: string) {
+    console.log(`Administrador ${adminId} eliminando usuario ${id}`);
     return this.userService.remove(id);
   }
 
