@@ -2,12 +2,13 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { UserService } from '../user/user.service';
-import { CreateUserDto } from '../user/dto/create-user.dto';
-import { LoginDto } from '../user/dto/login.dto';
-import { User } from '../user/entities/user.entity';
+} from "@nestjs/common";
+import { RpcException } from "@nestjs/microservices";
+import { JwtService } from "@nestjs/jwt";
+import { UserService } from "../user/user.service";
+import { CreateUserDto } from "../user/dto/create-user.dto";
+import { LoginDto } from "../user/dto/login.dto";
+import { User } from "../user/entities/user.entity";
 
 @Injectable()
 export class AuthService {
@@ -18,53 +19,46 @@ export class AuthService {
 
   async register(createUserDto: CreateUserDto) {
     try {
-      const user = await this.userService.create(createUserDto);
+      const { password, ...user } =
+        await this.userService.create(createUserDto);
       const payload = { email: user.email, sub: user.id, roles: user.roles };
-      
+
       return {
-        message: 'Usuario registrado exitosamente',
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          lastName: user.lastName,
-          roles: user.roles,
-          isActive: user.isActive,
-          createdAt: user.createdAt,
-        },
+        message: "User registered successfuylly",
+        data: { ...user },
         access_token: this.jwtService.sign(payload),
       };
     } catch (error) {
-      if (error instanceof ConflictException) {
+      if (error instanceof RpcException) {
         throw error;
       }
-      throw new ConflictException('Error al registrar usuario');
+      throw new RpcException({
+        status: 500,
+        message: "Internal Server Error",
+      });
     }
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-    
+    const { password, ...user } = await this.validateUser(
+      loginDto.email,
+      loginDto.password,
+    );
+
     if (!user.isActive) {
-      throw new UnauthorizedException('Usuario desactivado');
+      throw new RpcException({
+        status: 401,
+        message: "User deactivated",
+      });
     }
 
-    // Actualizar último login
     await this.userService.updateLastLogin(user.id);
 
     const payload = { email: user.email, sub: user.id, roles: user.roles };
-    
+
     return {
-      message: 'Login exitoso',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        lastName: user.lastName,
-        roles: user.roles,
-        isActive: user.isActive,
-        lastLogin: new Date(),
-      },
+      message: "Login exitoso",
+      user: { ...user },
       access_token: this.jwtService.sign(payload),
     };
   }
@@ -72,37 +66,40 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<User> {
     try {
       const user = await this.userService.findByEmail(email);
-      
+
       if (user && (await user.validatePassword(password))) {
         return user;
       }
-      
-      throw new UnauthorizedException('Credenciales inválidas');
+
+      throw new RpcException({
+        status: 401,
+        message: "Invalid credentials",
+      });
     } catch (error) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      if (error instanceof RpcException) {
+        throw error;
+      }
+      throw new RpcException({
+        status: 500,
+        message: "Internal Server Error",
+      });
     }
   }
 
   async validateToken(token: string) {
     try {
       const payload = this.jwtService.verify(token);
-      const user = await this.userService.findOne(payload.sub);
-      
+      const { password, ...user } = await this.userService.findOne(payload.sub);
+
       return {
         valid: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          roles: user.roles,
-          isActive: user.isActive,
-        },
+        user: { ...user },
       };
     } catch (error) {
-      return {
-        valid: false,
-        message: 'Token inválido o expirado',
-      };
+      throw new RpcException({
+        status: 400,
+        message: "Token no valid or expired",
+      });
     }
   }
 }

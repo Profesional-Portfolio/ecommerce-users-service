@@ -3,12 +3,13 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
+} from "@nestjs/common";
+import { RpcException } from "@nestjs/microservices";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, Like } from "typeorm";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
+import { User } from "./entities/user.entity";
 
 @Injectable()
 export class UserService {
@@ -24,12 +25,16 @@ export class UserService {
     });
 
     if (existingUser) {
-      throw new ConflictException('El email ya está registrado');
+      // throw new ConflictException('El email ya está registrado');
+      throw new RpcException({
+        status: 409,
+        message: "User already exists",
+      });
     }
 
     const user = this.userRepository.create({
       ...createUserDto,
-      roles: createUserDto.roles || ['user'],
+      roles: createUserDto.roles || ["user"],
     });
 
     return await this.userRepository.save(user);
@@ -49,7 +54,7 @@ export class UserService {
       where,
       skip,
       take: limit,
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
 
     return {
@@ -67,7 +72,11 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      // throw new NotFoundException("Usuario no encontrado");
+      throw new RpcException({
+        status: 404,
+        message: "User was not found",
+      });
     }
 
     return user;
@@ -79,7 +88,11 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      // throw new NotFoundException("Usuario no encontrado");
+      throw new RpcException({
+        status: 404,
+        message: "Invalid credentials, try again",
+      });
     }
 
     return user;
@@ -95,7 +108,11 @@ export class UserService {
       });
 
       if (existingUser) {
-        throw new ConflictException('El email ya está registrado');
+        // throw new ConflictException("El email ya está registrado");
+        throw new RpcException({
+          status: 409,
+          message: "Email already in use",
+        });
       }
     }
 
