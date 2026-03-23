@@ -8,9 +8,13 @@ const envSchema = z.object({
     .default("development"),
   RABBITMQ_URLS: z.array(z.string()),
   RABBITMQ_QUEUE: z.string().default("ecommerce_queue"),
+  JWT_SECRET: z.string(),
+  DATABASE_HOST: z.string(),
+  DATABASE_PORT: z.string(),
+  DATABASE_USER: z.string(),
+  DATABASE_PASSWORD: z.string(),
+  DATABASE_NAME: z.string(),
 });
-
-console.log("envs", process.env);
 
 export const result = envSchema.safeParse({
   ...process.env,
